@@ -2,9 +2,10 @@ pipeline {
     agent any
 
     stages {
-        stage('Hello') {
+        stage('List Cloned Files') {
             steps {
-                echo 'Hello, World!'
+                echo "Files cloned from the GitHub repo:"
+                sh 'ls -lah'
             }
         }
     }
