@@ -28,7 +28,7 @@ pipeline {
 
                     echo ""
                     echo "== Flattened Build Fields =="
-                    "$YQ_BIN" eval '.config[].build[] | to_entries[] | "\(.key): \(.value)"' "$YAML_FILE"
+                    "$YQ_BIN" eval '.config[].build[] | to_entries[] | "\\(.key): \\(.value)"' "$YAML_FILE"
                 '''
             }
         }
