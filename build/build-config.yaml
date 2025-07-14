@@ -178,8 +178,6 @@ config:
       - workdir: "backend/transformer"
         image-name: "transformer"
         dockerfile: "build/maven/Dockerfile"
-      - workdir: "backend/transformer/src/main/resources/db"
-        image-name: "transformer-db"
   - name: "oncourts/backend/treasury-backend"
     build:
       - workdir: "backend/treasury-backend"
