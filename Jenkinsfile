@@ -68,12 +68,14 @@ pipeline {
                                 }
                                 parameters {
                                     gitParameter {
-                                        name("GIT_BRANCH")
-                                        description("Choose a branch to build from")
-                                        type("PT_BRANCH")
-                                        branchFilter("origin/.*")
-                                        defaultValue("develop")
-                                        useRepository("backend")
+                                        name('GIT_BRANCH')
+                                        type('PT_BRANCH')
+                                        branch('origin/.*')
+                                        tagFilter('*')
+                                        sortMode('DESCENDING_SMART')
+                                        selectedValue('DEFAULT')
+                                        quickFilterEnabled(true)
+                                        useRepository('backend')
                                     }
                                     stringParam("CONFIG_NAME", "${name}", "Matches name in build-config.yaml")
                                 }
