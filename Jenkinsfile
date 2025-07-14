@@ -16,7 +16,6 @@ pipeline {
                 '''
             }
         }
-
         stage('Create Folders') {
             steps {
                 script {
@@ -25,19 +24,22 @@ pipeline {
                         returnStdout: true
                     ).trim().split("\n")
 
-                    def folders = rawNames.collect {
-                        it.replaceAll('"', '').split('/')[0..-2].join('/')
-                    }.toSet()
+                    Set<String> createdFolders = new HashSet<>()
 
-                    folders.each { folderPath ->
-                        if (folderPath) {
-                            echo "Creating folder: ${folderPath}"
-                            jobDsl scriptText: """
-                                folder("${folderPath}") {
-                                    displayName("${folderPath.tokenize('/').last()}")
-                                    description("Auto-generated folder for ${folderPath}")
-                                }
-                            """
+                    rawNames.each { fullPath ->
+                        def parts = fullPath.replaceAll('"', '').tokenize('/')
+                        for (int i = 1; i < parts.size(); i++) {
+                            def folderPath = parts[0..i - 1].join('/')
+                            if (!createdFolders.contains(folderPath)) {
+                                echo "Creating folder: ${folderPath}"
+                                jobDsl scriptText: """
+                                    folder("${folderPath}") {
+                                        displayName("${folderPath.tokenize('/').last()}")
+                                        description("Auto-generated folder for ${folderPath}")
+                                    }
+                                """
+                                createdFolders.add(folderPath)
+                            }
                         }
                     }
                 }
