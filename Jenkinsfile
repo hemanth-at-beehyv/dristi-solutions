@@ -16,7 +16,8 @@ pipeline {
                 '''
             }
         }
-        stage('Create Folders') {
+
+        stage('Generate Folder + Pipeline DSL') {
             steps {
                 script {
                     def rawNames = sh(
@@ -24,31 +25,30 @@ pipeline {
                         returnStdout: true
                     ).trim().split("\n")
 
-                    Set<String> createdFolders = new HashSet<>()
+                    Set<String> allFolders = new LinkedHashSet<>() // maintain order
+                    String allDsl = ""
 
+                    // STEP 1: Build folder paths top-down
                     rawNames.each { fullPath ->
                         def parts = fullPath.replaceAll('"', '').tokenize('/')
-                        for (int i = 1; i < parts.size(); i++) {
+                        for (int i = 1; i <= parts.size() - 1; i++) {
                             def folderPath = parts[0..i - 1].join('/')
-                            if (!createdFolders.contains(folderPath)) {
-                                echo "Creating folder: ${folderPath}"
-                                jobDsl scriptText: """
-                                    folder("${folderPath}") {
-                                        displayName("${folderPath.tokenize('/').last()}")
-                                        description("Auto-generated folder for ${folderPath}")
-                                    }
-                                """
-                                createdFolders.add(folderPath)
-                            }
+                            allFolders << folderPath
                         }
                     }
-                }
-            }
-        }
 
-        stage('Generate Pipelines from YAML') {
-            steps {
-                script {
+                    // STEP 2: Create folder DSL blocks
+                    allFolders.each { folderPath ->
+                        def display = folderPath.tokenize('/').last()
+                        allDsl += """
+folder("${folderPath}") {
+    displayName("${display}")
+    description("Auto-generated folder for ${folderPath}")
+}
+"""
+                    }
+
+                    // STEP 3: Create pipeline jobs
                     def configCount = sh(
                         script: "${YQ_BIN} eval '.config | length' ${YAML_FILE}",
                         returnStdout: true
@@ -60,43 +60,52 @@ pipeline {
                             returnStdout: true
                         ).trim().replaceAll('"', '')
 
-                        def folderPath = name.tokenize('/')[0..-2].join('/')
+                        def repo = sh(
+                            script: "${YQ_BIN} eval '.config[$i].repo // \"https://github.com/hemanth-at-beehyv/backend.git\"' ${YAML_FILE}",
+                            returnStdout: true
+                        ).trim().replaceAll('"', '')
 
-                        echo "Creating pipeline for ${name}"
+                        def branch = sh(
+                            script: "${YQ_BIN} eval '.config[$i].branch // \"develop\"' ${YAML_FILE}",
+                            returnStdout: true
+                        ).trim().replaceAll('"', '')
 
-                        jobDsl scriptText: """
-                            pipelineJob("${name}") {
-                                definition {
-                                    cpsScm {
-                                        scm {
-                                            git {
-                                                remote {
-                                                    url("https://github.com/hemanth-at-beehyv/backend.git")
-                                                }
-                                                branch("*/develop")
-                                            }
-                                        }
-                                        scriptPath("Jenkinsfile.build-service")
-                                    }
-                                }
-                                parameters {
-                                    gitParameter {
-                                        name('GIT_BRANCH')
-                                        description('Select branch to build')
-                                        type('PT_BRANCH')
-                                        defaultValue('develop')
-                                        branchFilter('origin/.*')
-                                        tagFilter('*')
-                                        sortMode('DESCENDING_SMART')
-                                        selectedValue('DEFAULT')
-                                        quickFilterEnabled(true)
-                                        useRepository('backend')
-                                    }
-                                    stringParam("CONFIG_NAME", "${name}", "Matches name in build-config.yaml")
-                                }
-                            }
-                        """
+                        allDsl += """
+pipelineJob("${name}") {
+    definition {
+        cpsScm {
+            scm {
+                git {
+                    remote {
+                        url("${repo}")
                     }
+                    branch("*/${branch}")
+                }
+            }
+            scriptPath("Jenkinsfile.build-service")
+        }
+    }
+    parameters {
+        gitParameter {
+            name('GIT_BRANCH')
+            description('Select branch to build')
+            type('PT_BRANCH')
+            defaultValue('${branch}')
+            branchFilter('origin/.*')
+            tagFilter('*')
+            sortMode('DESCENDING_SMART')
+            selectedValue('DEFAULT')
+            quickFilterEnabled(true)
+            useRepository('backend')
+        }
+        stringParam("CONFIG_NAME", "${name}", "Matches name in build-config.yaml")
+    }
+}
+"""
+                    }
+
+                    // STEP 4: Apply all folders + jobs in a single DSL run
+                    jobDsl scriptText: allDsl
                 }
             }
         }
