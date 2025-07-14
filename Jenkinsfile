@@ -17,41 +17,52 @@ pipeline {
             }
         }
 
+        stage('Create Folders') {
+            steps {
+                script {
+                    def rawNames = sh(
+                        script: "${YQ_BIN} eval '.config[].name' ${YAML_FILE}",
+                        returnStdout: true
+                    ).trim().split("\n")
+
+                    def folders = rawNames.collect {
+                        it.replaceAll('"', '').split('/')[0..-2].join('/')
+                    }.toSet()
+
+                    folders.each { folderPath ->
+                        if (folderPath) {
+                            echo "Creating folder: ${folderPath}"
+                            jobDsl scriptText: """
+                                folder("${folderPath}") {
+                                    displayName("${folderPath.tokenize('/').last()}")
+                                    description("Auto-generated folder for ${folderPath}")
+                                }
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
         stage('Generate Pipelines from YAML') {
             steps {
                 script {
-                    def buildConfig = sh(
-                        script: "${env.YQ_BIN} eval '.config' ${env.YAML_FILE}",
-                        returnStdout: true
-                    ).trim()
-
-                    // Parse the number of configs
                     def configCount = sh(
-                        script: "${env.YQ_BIN} eval '.config | length' ${env.YAML_FILE}",
+                        script: "${YQ_BIN} eval '.config | length' ${YAML_FILE}",
                         returnStdout: true
                     ).trim().toInteger()
 
                     for (int i = 0; i < configCount; i++) {
                         def name = sh(
-                            script: "${env.YQ_BIN} eval '.config[$i].name' ${env.YAML_FILE}",
+                            script: "${YQ_BIN} eval '.config[$i].name' ${YAML_FILE}",
                             returnStdout: true
                         ).trim().replaceAll('"', '')
 
-                        def buildCount = sh(
-                            script: "${env.YQ_BIN} eval \".config[$i].build | length\" ${env.YAML_FILE}",
-                            returnStdout: true
-                        ).trim().toInteger()
-
                         def folderPath = name.tokenize('/')[0..-2].join('/')
-                        def jobName = name.tokenize('/').last()
 
-                        // DSL script block
+                        echo "Creating pipeline for ${name}"
+
                         jobDsl scriptText: """
-                            folder("${folderPath}") {
-                                displayName("${folderPath.tokenize('/').last()}")
-                                description("Auto-generated folder for ${folderPath}")
-                            }
-
                             pipelineJob("${name}") {
                                 definition {
                                     cpsScm {
@@ -69,15 +80,15 @@ pipeline {
                                 parameters {
                                     gitParameter {
                                         name('GIT_BRANCH')
+                                        description('Select branch to build')
                                         type('PT_BRANCH')
-                                        branch('origin/.*')
+                                        defaultValue('develop')
+                                        branchFilter('origin/.*')
                                         tagFilter('*')
                                         sortMode('DESCENDING_SMART')
                                         selectedValue('DEFAULT')
                                         quickFilterEnabled(true)
                                         useRepository('backend')
-                                        branchFilter('origin/.*')
-                                        defaultValue('develop')
                                     }
                                     stringParam("CONFIG_NAME", "${name}", "Matches name in build-config.yaml")
                                 }
