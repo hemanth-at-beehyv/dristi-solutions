@@ -16,23 +16,29 @@ pipeline {
                 '''
             }
         }
-        stage('Check Workdir Paths from YAML') {
+
+        stage('Validate Workdirs from YAML') {
             steps {
                 sh '''
-                    echo "== Extracting and Checking Workdir Paths =="
+                    echo "Checking each workdir path from YAML"
 
-                    # Extract name + workdir pairs as tab-separated lines
-                    tools/yq eval -o=tsv '.config[] | select(.build) | .name as $name | .build[] | select(.workdir != null) | [$name, .workdir] | @tsv' build/build-config.yaml > workdirs.tsv
-
-                    echo ""
-                    echo "Checking if each workdir exists:"
-                    while IFS=$'\\t' read -r name workdir; do
-                        if [ -d "$workdir" ]; then
-                            echo "[$name] Exists: $workdir"
-                        else
-                            echo "❌ [$name] MISSING: $workdir"
+                    tools/yq eval -o=tsv '
+                      .config[] | select(.build) |
+                      .name as $name |
+                      .build[] | select(.workdir != null) |
+                      [$name, .workdir] | @tsv
+                    ' "$YAML_FILE" | while IFS=$'\\t' read -r name workdir; do
+                        if [ -z "$workdir" ]; then
+                            echo "[${name}] Skipped: empty workdir"
+                            continue
                         fi
-                    done < workdirs.tsv
+
+                        if [ -d "$workdir" ]; then
+                            echo "[${name}] Exists: ${workdir}"
+                        else
+                            echo "[${name}] Missing: ${workdir}"
+                        fi
+                    done
                 '''
             }
         }
