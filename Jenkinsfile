@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         YQ_BIN = "${env.WORKSPACE}/tools/yq"
-        YAML_FILE = "${env.WORKSPACE}/build/build-config.yaml"
+        YAML_FILE = "build/build-config.yaml"
     }
 
     stages {
@@ -11,24 +11,29 @@ pipeline {
             steps {
                 sh '''
                     mkdir -p tools
-                    pwd
-                    ls
-                    curl -L https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o "$YQ_BIN"
-                    chmod +x "$YQ_BIN"
+                    curl -L https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o tools/yq
+                    chmod +x tools/yq
                 '''
             }
         }
 
-        stage('Show Parsed YAML Fields') {
+        stage('Check Workdir Paths from YAML') {
             steps {
-                echo "Reading build definitions from YAML..."
                 sh '''
-                    echo "== Full Parsed YAML =="
-                    "$YQ_BIN" eval '.' "$YAML_FILE"
+                    echo "== Extracting and Checking Workdir Paths =="
+
+                    # Extract all workdirs into a temp file
+                    tools/yq eval '.config[].build[].workdir' build/build-config.yaml > workdirs.txt
 
                     echo ""
-                    echo "== Flattened Build Fields =="
-                    "$YQ_BIN" eval '.config[].build[] | to_entries[] | "\\(.key): \\(.value)"' "$YAML_FILE"
+                    echo "Checking if each workdir exists:"
+                    while read workdir; do
+                        if [ -d "$workdir" ]; then
+                            echo "✅ Exists: $workdir"
+                        else
+                            echo "❌ MISSING: $workdir"
+                        fi
+                    done < workdirs.txt
                 '''
             }
         }
