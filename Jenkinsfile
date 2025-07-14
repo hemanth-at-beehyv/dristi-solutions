@@ -76,6 +76,8 @@ pipeline {
                                         selectedValue('DEFAULT')
                                         quickFilterEnabled(true)
                                         useRepository('backend')
+                                        branchFilter('origin/.*')
+                                        defaultValue('develop')
                                     }
                                     stringParam("CONFIG_NAME", "${name}", "Matches name in build-config.yaml")
                                 }
