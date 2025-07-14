@@ -7,7 +7,7 @@ pipeline {
     }
 
     stages {
-        stage('Download yq Locally') {
+        stage('Download yq') {
             steps {
                 sh '''
                     mkdir -p tools
@@ -17,26 +17,16 @@ pipeline {
             }
         }
 
-        stage('Validate Workdirs from YAML') {
+        stage('Check Missing Workdirs') {
             steps {
                 sh '''
-                    echo "Checking each workdir path from YAML"
-
                     tools/yq eval -o=tsv '
-                    .config[] | select(.build) |
-                    .name as $name |
-                    .build[] | select(.workdir != null) |
-                    [$name, .workdir] | @tsv
-                    ' "$YAML_FILE" | while IFS=$'\\t' read -r name workdir; do
-                        if [ -z "$workdir" ]; then
-                            echo "[${name}] Skipped: empty workdir"
-                            continue
-                        fi
-
-                        if [ -d "$workdir" ]; then
-                            echo "[${name}] Exists: ${workdir}"
-                        else
-                            echo "[${name}] Missing: ${workdir}"
+                      .config[] | select(.build) |
+                      .build[] | select(.workdir != null) |
+                      .workdir
+                    ' "$YAML_FILE" | while read -r workdir; do
+                        if [ ! -d "$workdir" ]; then
+                            echo "missing workdirectory: $workdir"
                         fi
                     done
                 '''
