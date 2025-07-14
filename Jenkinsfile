@@ -61,7 +61,7 @@ folder("${folderPath}") {
                         ).trim().replaceAll('"', '')
 
                         def repo = sh(
-                            script: "${YQ_BIN} eval '.config[$i].repo // \"https://github.com/hemanth-at-beehyv/backend.git\"' ${YAML_FILE}",
+                            script: "${YQ_BIN} eval '.config[$i].repo // \"https://github.com/hemanth-at-beehyv/dristi-solutions.git\"' ${YAML_FILE}",
                             returnStdout: true
                         ).trim().replaceAll('"', '')
 
