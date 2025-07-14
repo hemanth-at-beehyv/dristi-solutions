@@ -5,7 +5,7 @@ pipeline {
         stage('List Cloned Files') {
             steps {
                 echo "Files cloned from the GitHub repo:"
-                sh 'ls -lah'
+                sh 'ls build'
             }
         }
     }
