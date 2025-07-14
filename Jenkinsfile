@@ -1,5 +1,3 @@
-@Library('jenkins-shared-lib') _  // Optional, if you plan to extract DSL functions later
-
 pipeline {
     agent any
 
