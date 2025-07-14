@@ -23,10 +23,10 @@ pipeline {
                     echo "Checking each workdir path from YAML"
 
                     tools/yq eval -o=tsv '
-                      .config[] | select(.build) |
-                      .name as $name |
-                      .build[] | select(.workdir != null) |
-                      [$name, .workdir] | @tsv
+                    .config[] | select(.build) |
+                    .name as $name |
+                    .build[] | select(.workdir != null) |
+                    [$name, .workdir] | @tsv
                     ' "$YAML_FILE" | while IFS=$'\\t' read -r name workdir; do
                         if [ -z "$workdir" ]; then
                             echo "[${name}] Skipped: empty workdir"
